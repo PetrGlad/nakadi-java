@@ -18,6 +18,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +47,16 @@ public class StreamProcessor implements StreamProcessorManaged {
   private final JsonBatchSupport jsonBatchSupport;
   private final long maxRetryDelay;
   private final int maxRetryAttempts;
+
+  public enum State {
+    INIT,
+    RUNNING,
+    STOPPING,
+    STOPPED
+  }
+  
   // non builder supplied
+  private final AtomicReference<State> state = new AtomicReference<>(State.INIT);
   private final AtomicBoolean started = new AtomicBoolean(false);
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final AtomicBoolean stopping = new AtomicBoolean(false);
@@ -170,7 +181,7 @@ public class StreamProcessor implements StreamProcessorManaged {
    * @return true if running, false if not.
    */
   public boolean running() {
-    return !stopping() && !stopped() && started();
+    return !stopping() && started();
   }
 
   /**
@@ -197,6 +208,10 @@ public class StreamProcessor implements StreamProcessorManaged {
     return this;
   }
 
+  State state() {
+    return state.get();
+  }
+
   boolean stopped() {
     return stopped.get();
   }
@@ -210,7 +225,7 @@ public class StreamProcessor implements StreamProcessorManaged {
   }
 
   private boolean inShutdown() {
-    return stopped() || stopping();
+    return stopping();
   }
 
   private void startStreaming() {
